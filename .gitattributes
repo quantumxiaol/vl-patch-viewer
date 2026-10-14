@@ -1,0 +1,4 @@
+* text=auto
+
+# Normalize line endings; BOM handling is verified by renderer tests.
+test/fixtures/*.vl text eol=lf

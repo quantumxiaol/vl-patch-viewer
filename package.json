@@ -1,0 +1,68 @@
+{
+  "name": "vl-patch-viewer",
+  "displayName": "VL Patch Viewer",
+  "description": "Visualize vvvv gamma .vl patch files as interactive SVG node graphs inside VS Code. Self-contained: no external tools required.",
+  "version": "0.1.0",
+  "publisher": "vl-patch-viewer-dev",
+  "license": "CC-BY-SA-4.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "vvvv",
+    "vl",
+    "patch",
+    "visual programming",
+    "node graph"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quantumxiaol/vl-patch-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/quantumxiaol/vl-patch-viewer/issues"
+  },
+  "homepage": "https://github.com/quantumxiaol/vl-patch-viewer#readme",
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "vlPatch.viewer",
+        "displayName": "VL Patch Graph",
+        "selector": [
+          {
+            "filenamePattern": "*.vl"
+          }
+        ],
+        "priority": "option"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts --max-warnings=0",
+    "test": "npm run compile && mocha \"out/test/**/*.test.js\"",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.6"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "@vscode/vsce": "^4.0.0",
+    "eslint": "^8.56.0",
+    "mocha": "^12.0.3",
+    "typescript": "^5.3.3"
+  }
+}
