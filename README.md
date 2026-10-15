@@ -30,9 +30,16 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 - **Graph view for `.vl` files** — open any `.vl` file with the
   *VL Patch Graph* custom editor to see the patch rendered as an SVG node
   graph (nodes, pins, links, regions, IOBoxes, comments).
+- **Per-canvas views** — switch between discovered Process canvases or inspect
+  the whole document. Executable regions stay in scope; independent definitions
+  are excluded from the selected canvas.
+- **Node and IOBox details** — click an element to inspect its category, bounds,
+  pins, and saved values; double-click to zoom to it.
+- **Static saved-value editing** — change an input Pin's `DefaultValue` or an
+  IOBox's `Value` through a typed, validated edit. Unknown elements and unsafe
+  targets are refused.
 - **Text ↔ graph duality** — the custom editor is a *text* editor underneath,
-  so you can switch between "Text Editor" and "VL Patch Graph" any time;
-  undo history and save behavior are unchanged.
+  so edits use VS Code's native undo, dirty-state, and save behavior.
 - **Live refresh** — re-renders while you type (debounced), on save, and when
   the file changes on disk while clean (e.g. vvvv rewrote it).
 - **Pan & zoom** — drag to pan, wheel to zoom around the cursor, toolbar for
@@ -42,8 +49,8 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
   [vl-patch-manipulator](https://github.com/tebjan/vvvv-skills), see
   [Credits](#credits--license)).
 
-Deliberately out of scope for now (see [Roadmap](#roadmap)): drag-wiring,
-region editing, runtime values.
+Deliberately out of scope for now: node insertion/deletion, drag-wiring,
+catalog search, runtime values, and live vvvv compilation.
 
 ## Usage
 
@@ -65,10 +72,25 @@ your VS Code user settings:
 Switch back at any time via *Open vl with…* → *Text Editor*. No renderer
 configuration is needed.
 
+### Inspect and edit saved values
+
+1. Select a Process canvas from the **Canvas** dropdown, or choose
+   **Whole document**.
+2. Click a node or IOBox to open its details. Double-click an element to zoom
+   to it.
+3. Edit a supported `DefaultValue` or `Value` and select **Apply**. Structural
+   validation runs before the edit is accepted.
+4. Use `Ctrl+Z` to undo and `Ctrl+S` to save. The extension does not save or
+   rewrite the rest of the document for you.
+
+Only direct input-pin defaults and non-Slot Pad values are editable. Nested
+`DefaultValue` elements and Slot pads are read-only.
+
 ## Known Limitations
 
-- Whole-document rendering: a `.vl` file can contain many patches; the view
-  shows all of them in one canvas. Per-canvas navigation is a Phase 2 item.
+- Static validation checks XML structure, IDs, links, and related invariants;
+  it cannot prove that a value has the correct runtime type or that vvvv will
+  compile the patch. Runtime values and type inference are not available.
 - Node labels may be truncated in the SVG at low zoom; zoom in to read them.
 - Node semantics (pin types, overloads) live in .NET assemblies and are not
   available offline; the graph shows structure and saved values only.
@@ -77,8 +99,9 @@ configuration is needed.
 
 ## Roadmap
 
-- **Phase 2 — light editing**: click a node to inspect/edit its inputs;
-  insert nodes from a catalog; per-canvas views for multi-patch documents.
+- **Phase 2 — current**: per-canvas views, element details, and static
+  saved-value editing.
+- **Later**: donor-based node insertion and additional layout operations.
 - **Phase 3 (maybe)**: live collaboration feedback with a running vvvv.
 
 ## Credits & License
@@ -86,7 +109,7 @@ configuration is needed.
 - This extension is a **derivative work** of
   [vl-patch-manipulator](https://github.com/tebjan/vvvv-skills) by **tebjan**
   and the vvvv community. The VL parsing, geometry and SVG generation code was
-  ported from it and reduced to the read-only rendering path.
+  ported from it and reduced to the rendering and static XML editing path.
 - Licensed under **CC BY-SA 4.0** (same as the upstream work) — see
   [LICENSE](https://github.com/quantumxiaol/vl-patch-viewer/blob/HEAD/LICENSE) for the full legal text and attribution notice.
 - [vvvv](https://vvvv.org) / VL format by the vvvv group.

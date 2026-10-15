@@ -1,6 +1,6 @@
 // Indexed view over a parsed VL document — a TypeScript port of the
-// VlGraph class from vl-patch-manipulator (document.py). Only the read-only
-// queries needed for rendering are ported.
+// VlGraph class from vl-patch-manipulator (document.py). The read-only
+// queries needed for rendering and inspection are ported.
 import {
   XmlElement,
   attr,
@@ -10,8 +10,20 @@ import {
   localName,
 } from './xml';
 
+export interface CanvasInfo {
+  id: string;
+  name: string;
+  patchId: string;
+  definitionId?: string;
+  isApplication: boolean;
+}
+
+/** Undefined means the whole document; a set limits content to one canvas. */
+export type CanvasScope = Set<XmlElement> | undefined;
+
 export class VlGraph {
   public readonly byId = new Map<string, XmlElement>();
+  public readonly elements: XmlElement[] = [];
   public readonly nodes: XmlElement[] = [];
   public readonly pads: XmlElement[] = [];
   public readonly links: XmlElement[] = [];
@@ -48,6 +60,7 @@ export class VlGraph {
       }
     }
     for (const element of ordered) {
+      this.elements.push(element);
       const id = attr(element, 'Id');
       if (id && !this.byId.has(id)) {
         this.byId.set(id, element);
@@ -223,6 +236,110 @@ export class VlGraph {
     }
     const choices = childElements(reference, 'Choice');
     return choices.length > 0 ? attr(choices[choices.length - 1], 'Name') ?? '' : '';
+  }
+
+  public canvases(): CanvasInfo[] {
+    const result: CanvasInfo[] = [];
+    for (const canvas of this.elements) {
+      if (localName(canvas) !== 'Canvas' || attr(canvas, 'CanvasType') !== 'Group') {
+        continue;
+      }
+      const id = attr(canvas, 'Id');
+      const owner = this.parentOf.get(canvas);
+      if (!id || !owner || localName(owner) !== 'Patch') {
+        continue;
+      }
+      const definition = this.parentOf.get(owner);
+      const isApplication = definition !== undefined && attr(definition, 'Name') === 'Application';
+      result.push({
+        id,
+        name: (definition && attr(definition, 'Name')) ?? attr(owner, 'Name') ?? 'Canvas',
+        patchId: attr(owner, 'Id') ?? '',
+        definitionId: definition ? attr(definition, 'Id') : undefined,
+        isApplication,
+      });
+    }
+    return result;
+  }
+
+  public defaultCanvasId(): string | undefined {
+    const canvases = this.canvases();
+    return (canvases.find((canvas) => canvas.isApplication) ?? canvases[0])?.id;
+  }
+
+  /** Select a canvas and executable regions without entering definitions. */
+  public canvasScope(canvasId: string | null): CanvasScope {
+    if (canvasId === null) {
+      return undefined;
+    }
+    const canvas = this.byId.get(canvasId);
+    if (!canvas || localName(canvas) !== 'Canvas') {
+      throw new Error(`Unknown canvas: ${canvasId}`);
+    }
+    const selected = new Set<XmlElement>();
+    const pending: XmlElement[] = [canvas];
+    while (pending.length > 0) {
+      const element = pending.pop()!;
+      if (localName(element) === 'Node') {
+        const reference = childElement(element, 'NodeReference');
+        if (
+          reference &&
+          childElements(reference, 'Choice').some((choice) =>
+            (attr(choice, 'Kind') ?? '').endsWith('Definition')
+          )
+        ) {
+          continue;
+        }
+      }
+      selected.add(element);
+      const children: XmlElement[] = [];
+      for (let child = element.firstChild; child; child = child.nextSibling) {
+        if (child.nodeType === 1) {
+          children.push(child as XmlElement);
+        }
+      }
+      pending.push(...children);
+    }
+    return selected;
+  }
+
+  public scopedNodes(scope: CanvasScope): XmlElement[] {
+    if (scope === undefined) {
+      return this.operationalNodes();
+    }
+    return this.nodes.filter((node) => {
+      if (!scope.has(node)) {
+        return false;
+      }
+      const reference = childElement(node, 'NodeReference');
+      if (!reference) {
+        return false;
+      }
+      return childElements(reference, 'Choice').every((choice) => {
+        const kind = attr(choice, 'Kind') ?? '';
+        return !kind.endsWith('Definition') && !kind.endsWith('Region');
+      });
+    });
+  }
+
+  public scopedLinks(scope: CanvasScope): XmlElement[] {
+    if (scope === undefined) {
+      return this.links;
+    }
+    return this.links.filter((link) => {
+      if ((attr(link, 'IsHidden') ?? 'false').toLowerCase() === 'true') {
+        return false;
+      }
+      const endpoints = VlGraph.linkEndpoints(link);
+      return !!endpoints && endpoints.every((identifier) => {
+        const endpoint = this.byId.get(identifier);
+        return endpoint !== undefined && scope.has(endpoint);
+      });
+    });
+  }
+
+  public isInScope(element: XmlElement, scope: CanvasScope): boolean {
+    return scope === undefined || scope.has(element);
   }
 
   public static isFeedback(link: XmlElement): boolean {

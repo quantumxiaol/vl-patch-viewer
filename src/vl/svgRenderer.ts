@@ -1,7 +1,7 @@
-// Whole-document SVG preview — a TypeScript port of spatial.py's
-// render_svg / _visible_elements / layout_analysis from vl-patch-manipulator.
+// Scoped SVG preview — a TypeScript port of spatial.py's render_svg,
+// _visible_elements and layout_analysis from vl-patch-manipulator.
 import { XmlElement, attr, childElements } from './xml';
-import { VlGraph } from './graph';
+import { CanvasScope, VlGraph } from './graph';
 import {
   AnchorContext,
   Rect,
@@ -47,9 +47,9 @@ const KIND_ORDER: Record<string, number> = {
   node: 5,
 };
 
-export function renderSvg(graph: VlGraph): string {
+export function renderSvg(graph: VlGraph, scope?: CanvasScope): string {
   const context: AnchorContext = { graph };
-  const elements = visibleElements(context);
+  const elements = visibleElements(context, scope);
   if (elements.length === 0) {
     throw new Error('This .vl document contains no renderable patch content.');
   }
@@ -75,7 +75,7 @@ export function renderSvg(graph: VlGraph): string {
     parts.push(`<text class="small" x="${formatG(x + 8)}" y="${formatG(y + 13)}">${escapeXml(label)}</text>`);
   }
 
-  for (const link of graph.links) {
+  for (const link of graph.scopedLinks(scope)) {
     const endpoints = VlGraph.linkEndpoints(link);
     if (!endpoints) {
       continue;
@@ -100,6 +100,8 @@ export function renderSvg(graph: VlGraph): string {
       continue;
     }
     const [x, y, w, h] = bounds;
+    const elementId = attr(element, 'Id') ?? '';
+    parts.push(`<g class="element" data-element-id="${escapeXml(elementId)}" data-kind="${escapeXml(kind)}">`);
     if (kind === 'slot' || kind === 'control_point') {
       const stored = parseBounds(attr(element, 'Bounds'))!;
       const centerX = stored[0] + 0.5;
@@ -114,6 +116,7 @@ export function renderSvg(graph: VlGraph): string {
       if (label) {
         parts.push(`<text class="label" x="${formatG(centerX + 6.5)}" y="${formatG(centerY + 3)}">${escapeXml(label)}</text>`);
       }
+      parts.push('</g>');
       continue;
     }
     const css = kind === 'node' ? 'node' : kind === 'pad' ? 'pad' : 'comment';
@@ -134,9 +137,10 @@ export function renderSvg(graph: VlGraph): string {
         }
       }
     }
+    parts.push('</g>');
   }
 
-  const analysis = layoutAnalysis(context);
+  const analysis = layoutAnalysis(context, scope);
   parts.push(
     `<text class="small" x="${formatG(left + 8)}" y="${formatG(bottom - 8)}">overlaps ${analysis.overlaps} · upward ${analysis.upward} · crossings ${analysis.crossings}</text>`
   );
@@ -144,17 +148,20 @@ export function renderSvg(graph: VlGraph): string {
   return parts.join('\n');
 }
 
-function visibleElements(context: AnchorContext): VisibleElement[] {
+function visibleElements(context: AnchorContext, scope?: CanvasScope): VisibleElement[] {
   const { graph } = context;
   const annotationIds = new Set(graph.annotations().map((element) => attr(element, 'Id')));
   const elements: VisibleElement[] = [];
-  for (const node of graph.operationalNodes()) {
+  for (const node of graph.scopedNodes(scope)) {
     const bounds = elementRectangle(node);
     if (bounds) {
       elements.push({ element: node, kind: 'node', label: VlGraph.nodeName(node), bounds });
     }
   }
   for (const pad of graph.pads) {
+    if (scope && !scope.has(pad)) {
+      continue;
+    }
     const stored = parseBounds(attr(pad, 'Bounds'));
     const isSlot =
       !!attr(pad, 'SlotId') && stored !== undefined && stored.length === 2;
@@ -177,6 +184,9 @@ function visibleElements(context: AnchorContext): VisibleElement[] {
     elements.push({ element: pad, kind, label, bounds });
   }
   for (const portal of graph.controlPoints) {
+    if (scope && !scope.has(portal)) {
+      continue;
+    }
     const label = dataHubLabel(context, portal);
     if (!label && !['Top', 'Bottom'].includes(attr(portal, 'Alignment') ?? '')) {
       continue;
@@ -187,9 +197,29 @@ function visibleElements(context: AnchorContext): VisibleElement[] {
     }
   }
   for (const overlay of graph.overlays) {
+    if (scope && !scope.has(overlay)) {
+      continue;
+    }
     const bounds = bounds4(overlay);
     if (bounds) {
       elements.push({ element: overlay, kind: 'region', label: attr(overlay, 'Name') ?? '', bounds });
+    }
+  }
+  if (scope) {
+    for (const node of graph.nodes) {
+      if (!scope.has(node)) {
+        continue;
+      }
+      const reference = childElements(node, 'NodeReference')[0];
+      if (
+        reference &&
+        childElements(reference, 'Choice').some((choice) => (attr(choice, 'Kind') ?? '').endsWith('Region'))
+      ) {
+        const bounds = bounds4(node);
+        if (bounds) {
+          elements.push({ element: node, kind: 'region', label: VlGraph.nodeName(node), bounds });
+        }
+      }
     }
   }
   elements.sort((a, b) => {
@@ -213,17 +243,20 @@ function bounds4(element: XmlElement): Rect | undefined {
 }
 
 /** Footer statistics: pairwise overlaps, upward links, link crossings. */
-function layoutAnalysis(context: AnchorContext): { overlaps: number; upward: number; crossings: number } {
+function layoutAnalysis(context: AnchorContext, scope?: CanvasScope): { overlaps: number; upward: number; crossings: number } {
   const { graph } = context;
   const annotationIds = new Set(graph.annotations().map((element) => attr(element, 'Id')));
   const rectangles: Rect[] = [];
-  for (const node of graph.operationalNodes()) {
+  for (const node of graph.scopedNodes(scope)) {
     const rectangle = elementRectangle(node);
     if (rectangle) {
       rectangles.push(rectangle);
     }
   }
   for (const pad of graph.pads) {
+    if (scope && !scope.has(pad)) {
+      continue;
+    }
     if (annotationIds.has(attr(pad, 'Id')) || (graph.outgoing.get(attr(pad, 'Id') ?? '')?.size ?? 0) === 0) {
       continue;
     }
@@ -252,7 +285,7 @@ function layoutAnalysis(context: AnchorContext): { overlaps: number; upward: num
   }
   const segments: Segment[] = [];
   let upward = 0;
-  for (const link of graph.links) {
+  for (const link of graph.scopedLinks(scope)) {
     const endpoints = VlGraph.linkEndpoints(link);
     if (!endpoints) {
       continue;

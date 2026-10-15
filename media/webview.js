@@ -1,5 +1,5 @@
 // Runs inside the VL preview webview: renders the SVG pushed by the extension
-// host and provides zoom-to-cursor / drag-to-pan navigation.
+// host and provides canvas selection, element details and pan/zoom navigation.
 (function () {
   'use strict';
 
@@ -7,9 +7,15 @@
   var viewport = document.getElementById('viewport');
   var scene = document.getElementById('scene');
   var statusEl = document.getElementById('status');
+  var canvasSelect = document.getElementById('canvas-select');
+  var detailsPanel = document.getElementById('details');
+  var detailsContent = document.getElementById('details-content');
 
   var state = { scale: 1, tx: 0, ty: 0 };
   var svgInfo = null; // { width, height } of the current SVG
+  var selectedElementId = null;
+  var lastPointerDownId = null;
+  var lastPointerDownTime = 0;
 
   function applyTransform() {
     scene.style.transform = 'translate(' + state.tx + 'px,' + state.ty + 'px) scale(' + state.scale + ')';
@@ -55,10 +61,12 @@
     return { width: width, height: height };
   }
 
-  function showRender(svgMarkup) {
-    scene.innerHTML = svgMarkup;
-    svgInfo = parseSvgSize(svgMarkup);
+  function showRender(message) {
+    scene.innerHTML = message.svg;
+    svgInfo = parseSvgSize(message.svg);
+    updateCanvasOptions(message.canvases, message.selectedCanvasId);
     fitToView();
+    setSelectedElement(selectedElementId);
     setStatus('');
   }
 
@@ -87,6 +95,22 @@
 
   viewport.addEventListener('pointerdown', function (e) {
     if (e.button !== 0 && e.button !== 1) { return; }
+    var group = e.button === 0 ? selectedGroup(e) : null;
+    var id = group ? group.getAttribute('data-element-id') : null;
+    if (group && id) {
+      if (lastPointerDownId === id && e.timeStamp - lastPointerDownTime < 450) {
+        zoomToElement(group);
+        lastPointerDownTime = 0;
+        e.preventDefault();
+      } else {
+        lastPointerDownTime = e.timeStamp;
+      }
+      lastPointerDownId = id;
+      setSelectedElement(id);
+      vscode.postMessage({ type: 'selectElement', elementId: id });
+    } else {
+      lastPointerDownId = null;
+    }
     dragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
@@ -126,13 +150,169 @@
 
   window.addEventListener('resize', fitToView);
 
+  // --- Canvas selection and details --------------------------------------------
+
+  function updateCanvasOptions(canvases, selectedId) {
+    canvasSelect.innerHTML = '';
+    var whole = document.createElement('option');
+    whole.value = '';
+    whole.textContent = 'Whole document';
+    canvasSelect.appendChild(whole);
+    (canvases || []).forEach(function (canvas) {
+      var option = document.createElement('option');
+      option.value = canvas.id;
+      option.textContent = canvas.name;
+      canvasSelect.appendChild(option);
+    });
+    canvasSelect.value = selectedId === null ? '' : (selectedId || '');
+    canvasSelect.disabled = !canvases || canvases.length === 0;
+  }
+
+  function setSelectedElement(id) {
+    selectedElementId = id;
+    var selected = scene.querySelectorAll('.element.selected');
+    for (var i = 0; i < selected.length; i++) {
+      selected[i].classList.remove('selected');
+    }
+    if (!id) { return; }
+    var elements = scene.querySelectorAll('[data-element-id]');
+    for (var j = 0; j < elements.length; j++) {
+      if (elements[j].getAttribute('data-element-id') === id) {
+        elements[j].classList.add('selected');
+        return;
+      }
+    }
+  }
+
+  function clearDetails() {
+    detailsPanel.hidden = true;
+    detailsContent.innerHTML = '';
+    setSelectedElement(null);
+  }
+
+  function selectedGroup(event) {
+    if (!event.target || typeof event.target.closest !== 'function') { return null; }
+    var group = event.target.closest('[data-element-id]');
+    return group && scene.contains(group) ? group : null;
+  }
+
+  function zoomToElement(group) {
+    if (!group || typeof group.getBBox !== 'function') { return; }
+    var bounds = group.getBBox();
+    if (!bounds.width || !bounds.height) { return; }
+    var vw = viewport.clientWidth;
+    var vh = viewport.clientHeight;
+    var scale = Math.min((vw - 80) / bounds.width, (vh - 80) / bounds.height, 4);
+    if (!isFinite(scale) || scale <= 0) { return; }
+    state.scale = Math.max(0.02, scale);
+    state.tx = vw / 2 - (bounds.x + bounds.width / 2) * state.scale;
+    state.ty = vh / 2 - (bounds.y + bounds.height / 2) * state.scale;
+    applyTransform();
+  }
+
+  canvasSelect.addEventListener('change', function () {
+    selectedElementId = null;
+    clearDetails();
+    vscode.postMessage({ type: 'selectCanvas', canvasId: canvasSelect.value || null });
+  });
+
+  function addDetailRow(label, value) {
+    var row = document.createElement('div');
+    row.className = 'detail-row';
+    var labelEl = document.createElement('span');
+    labelEl.className = 'detail-label';
+    labelEl.textContent = label + ': ';
+    var valueEl = document.createElement('span');
+    valueEl.className = 'detail-value';
+    valueEl.textContent = value === undefined || value === null ? '—' : (value === '' ? '(empty)' : String(value));
+    row.appendChild(labelEl);
+    row.appendChild(valueEl);
+    detailsContent.appendChild(row);
+  }
+
+  function addSectionTitle(text) {
+    var title = document.createElement('h3');
+    title.textContent = text;
+    detailsContent.appendChild(title);
+  }
+
+  function addValueEditor(label, value, apply) {
+    var row = document.createElement('div');
+    row.className = 'editor-row';
+    var labelEl = document.createElement('label');
+    labelEl.textContent = label;
+    var input = document.createElement('input');
+    input.value = value === undefined || value === null ? '' : String(value);
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Apply';
+    button.addEventListener('click', function () { apply(input.value); });
+    row.appendChild(labelEl);
+    row.appendChild(input);
+    row.appendChild(button);
+    detailsContent.appendChild(row);
+  }
+
+  function showDetails(details) {
+    detailsPanel.hidden = false;
+    detailsContent.innerHTML = '';
+    var title = document.createElement('h2');
+    title.textContent = details.name;
+    detailsContent.appendChild(title);
+    addDetailRow('Kind', details.kind);
+    addDetailRow('Category', details.category);
+    addDetailRow('ID', details.id);
+    addDetailRow('Bounds', details.bounds);
+    if (details.comment !== undefined) {
+      addDetailRow('Comment', details.comment);
+    }
+
+    if (details.kind === 'pad') {
+      addSectionTitle('Saved value');
+      if (details.editable) {
+        addValueEditor('Value', details.value, function (value) {
+          vscode.postMessage({ type: 'setPadValue', padId: details.id, value: value });
+        });
+      } else {
+        addDetailRow('Value', details.value);
+      }
+    } else if (details.kind === 'node') {
+      addSectionTitle('Pins');
+      (details.pins || []).forEach(function (pin) {
+        var label = pin.name + ' (' + pin.kind + (pin.hidden ? ', hidden' : '') + ')';
+        if (pin.editable) {
+          addValueEditor(label, pin.defaultValue, function (value) {
+            vscode.postMessage({ type: 'setPinDefault', pinId: pin.id, value: value });
+          });
+        } else {
+          addDetailRow(label, pin.defaultValue);
+          if (pin.readOnlyReason) {
+            var reason = document.createElement('div');
+            reason.className = 'detail-readonly';
+            reason.textContent = pin.readOnlyReason;
+            detailsContent.appendChild(reason);
+          }
+        }
+      });
+    }
+
+    var note = document.createElement('div');
+    note.className = 'detail-note';
+    note.textContent = 'Saved XML values only. Runtime values and vvvv type checking are not available.';
+    detailsContent.appendChild(note);
+  }
+
   // --- Messages from the extension host ---------------------------------------
 
   window.addEventListener('message', function (event) {
     var msg = event.data;
     if (!msg || typeof msg.type !== 'string') { return; }
     if (msg.type === 'render') {
-      showRender(msg.svg);
+      showRender(msg);
+    } else if (msg.type === 'details') {
+      showDetails(msg.details);
+    } else if (msg.type === 'detailsEmpty') {
+      clearDetails();
     } else if (msg.type === 'error') {
       setStatus(msg.message, true);
     } else if (msg.type === 'status') {

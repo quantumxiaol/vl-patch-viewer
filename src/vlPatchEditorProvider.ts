@@ -4,11 +4,26 @@
 // "VL Patch Graph" at any time without losing undo history.
 import * as vscode from 'vscode';
 import { VlRenderer } from './renderer';
+import { describeElement, ElementDetails } from './vl/details';
+import { createStaticEdit, StaticEditRequest } from './vl/edits';
+import { CanvasInfo, VlGraph } from './vl/graph';
+import { parseXml } from './vl/xml';
 
 interface RenderSuccessMessage {
   type: 'render';
   svg: string;
   fileName: string;
+  canvases: CanvasInfo[];
+  selectedCanvasId: string | null;
+}
+
+interface DetailsMessage {
+  type: 'details';
+  details: ElementDetails;
+}
+
+interface DetailsEmptyMessage {
+  type: 'detailsEmpty';
 }
 
 interface RenderErrorMessage {
@@ -21,7 +36,13 @@ interface StatusMessage {
   message: string;
 }
 
-type HostToWebview = RenderSuccessMessage | RenderErrorMessage | StatusMessage;
+type HostToWebview = RenderSuccessMessage | DetailsMessage | DetailsEmptyMessage | RenderErrorMessage | StatusMessage;
+
+type WebviewToHost =
+  | { type: 'ready' }
+  | { type: 'selectCanvas'; canvasId: string | null }
+  | { type: 'selectElement'; elementId: string }
+  | StaticEditRequest;
 
 export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
   public static readonly viewType = 'vlPatch.viewer';
@@ -52,24 +73,69 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
 
     let renderSeq = 0;
     let debounceTimer: NodeJS.Timeout | undefined;
+    let selectedCanvasId: string | null | undefined;
+    let selectedElementId: string | undefined;
+
+    const showDetails = (): void => {
+      if (!selectedElementId) {
+        this.post(webviewPanel.webview, { type: 'detailsEmpty' });
+        return;
+      }
+      try {
+        const graph = new VlGraph(parseXml(document.getText()));
+        const details = describeElement(
+          graph,
+          selectedElementId,
+          graph.canvasScope(selectedCanvasId ?? null)
+        );
+        this.post(webviewPanel.webview, { type: 'details', details });
+      } catch {
+        selectedElementId = undefined;
+        this.post(webviewPanel.webview, { type: 'detailsEmpty' });
+      }
+    };
 
     const render = async (reason: string): Promise<void> => {
       const seq = ++renderSeq;
       this.post(webviewPanel.webview, { type: 'status', message: `Rendering (${reason})…` });
       try {
-        const result = this.renderer.render(document.getText());
+        const result = this.renderer.render(document.getText(), selectedCanvasId);
         if (seq !== renderSeq) {
           return; // A newer render superseded this one.
         }
+        selectedCanvasId = result.selectedCanvasId;
         this.post(webviewPanel.webview, {
           type: 'render',
           svg: result.svg,
           fileName: document.fileName,
+          canvases: result.canvases,
+          selectedCanvasId: result.selectedCanvasId,
         });
+        showDetails();
       } catch (err) {
         if (seq !== renderSeq) {
           return;
         }
+        const message = err instanceof Error ? err.message : String(err);
+        this.post(webviewPanel.webview, { type: 'error', message });
+      }
+    };
+
+    const applyStaticEdit = async (request: StaticEditRequest): Promise<void> => {
+      try {
+        const edit = createStaticEdit(document.getText(), request, selectedCanvasId);
+        const workspaceEdit = new vscode.WorkspaceEdit();
+        workspaceEdit.replace(
+          document.uri,
+          new vscode.Range(document.positionAt(edit.start), document.positionAt(edit.end)),
+          edit.newText
+        );
+        if (!(await vscode.workspace.applyEdit(workspaceEdit))) {
+          throw new Error('VS Code rejected the static edit');
+        }
+        this.post(webviewPanel.webview, { type: 'status', message: 'Static value updated (unsaved)' });
+        void vscode.window.setStatusBarMessage('VL static value updated; save to write it to disk.', 3000);
+      } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.post(webviewPanel.webview, { type: 'error', message });
       }
@@ -83,15 +149,19 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     };
 
     // Initial render once the webview signals it is ready.
-    const readySub = webviewPanel.webview.onDidReceiveMessage((msg: { type?: string }) => {
-      if (msg?.type === 'ready') {
+    const readySub = webviewPanel.webview.onDidReceiveMessage((msg: WebviewToHost) => {
+      if (msg.type === 'ready') {
         void render('initial');
-      } else if (msg?.type === 'nodeClicked') {
-        // Phase 2 hook: show node details when graph hit-testing is added.
-        void vscode.window.setStatusBarMessage(
-          `VL node selected: ${String((msg as { nodeId?: string }).nodeId ?? 'unknown')}`,
-          3000
-        );
+      } else if (msg.type === 'selectCanvas') {
+        selectedCanvasId = msg.canvasId;
+        selectedElementId = undefined;
+        this.post(webviewPanel.webview, { type: 'detailsEmpty' });
+        void render('canvas');
+      } else if (msg.type === 'selectElement') {
+        selectedElementId = msg.elementId;
+        showDetails();
+      } else if (msg.type === 'setPinDefault' || msg.type === 'setPadValue') {
+        void applyStaticEdit(msg);
       }
     });
 
@@ -147,21 +217,49 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VL Patch Graph</title>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1d21; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1d21; color: #d5d9df; }
+    #canvas-bar {
+      position: fixed; top: 8px; left: 8px; z-index: 10; display: flex; align-items: center;
+      gap: 6px; font: 12px/1.4 system-ui, sans-serif;
+    }
+    #canvas-select {
+      max-width: 280px; background: #2d3036; color: #d5d9df; border: 1px solid #4a4f57;
+      border-radius: 4px; padding: 3px 6px;
+    }
     #toolbar {
       position: fixed; top: 8px; right: 8px; z-index: 10;
       display: flex; gap: 4px; font: 12px/1.4 system-ui, sans-serif;
     }
-    #toolbar button {
+    #toolbar button, .editor-row button {
       background: #2d3036; color: #d5d9df; border: 1px solid #4a4f57;
       border-radius: 4px; padding: 2px 10px; cursor: pointer;
     }
-    #toolbar button:hover { background: #3a3e45; }
+    #toolbar button:hover, .editor-row button:hover { background: #3a3e45; }
+    #details {
+      position: fixed; top: 42px; right: 8px; bottom: 8px; z-index: 9; width: 330px;
+      overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #4a4f57;
+      border-radius: 6px; background: rgba(30, 32, 37, 0.97); font: 12px/1.45 system-ui, sans-serif;
+    }
+    #details[hidden] { display: none; }
+    #details h2 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+    #details h3 { margin: 14px 0 6px; font-size: 12px; color: #9aa1ab; text-transform: uppercase; }
+    .detail-row { margin: 4px 0; overflow-wrap: anywhere; }
+    .detail-label { color: #9aa1ab; }
+    .detail-value { color: #e6e9ed; font-family: Consolas, monospace; }
+    .detail-pins { border-top: 1px solid #3a3e45; margin-top: 8px; padding-top: 4px; }
+    .editor-row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+    .editor-row label { flex: 0 0 38%; overflow-wrap: anywhere; }
+    .editor-row input {
+      min-width: 0; flex: 1; box-sizing: border-box; background: #17181b; color: #e6e9ed;
+      border: 1px solid #4a4f57; border-radius: 3px; padding: 3px 5px; font: 11px Consolas, monospace;
+    }
+    .detail-note { margin-top: 14px; color: #9aa1ab; }
+    .detail-readonly { color: #9aa1ab; font-size: 11px; }
     #status {
       position: fixed; left: 8px; bottom: 8px; z-index: 10;
       font: 11px/1.4 system-ui, sans-serif; color: #9aa1ab;
       background: rgba(20, 21, 24, 0.8); padding: 2px 8px; border-radius: 4px;
-      max-width: 70%; white-space: pre-wrap;
+      max-width: 60%; white-space: pre-wrap;
     }
     #status.error { color: #ff8a8a; }
     #viewport {
@@ -171,9 +269,14 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     #viewport.dragging { cursor: grabbing; }
     #scene { transform-origin: 0 0; user-select: none; -webkit-user-select: none; }
     #scene svg { display: block; user-select: none; -webkit-user-select: none; }
+    #scene .element.selected > rect:first-child { stroke: #4fc3f7; stroke-width: 2; }
   </style>
 </head>
 <body>
+  <div id="canvas-bar">
+    <label for="canvas-select">Canvas</label>
+    <select id="canvas-select" aria-label="Canvas"><option>Loading…</option></select>
+  </div>
   <div id="toolbar">
     <button id="zoom-in" title="Zoom in">+</button>
     <button id="zoom-out" title="Zoom out">−</button>
@@ -181,6 +284,7 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     <button id="zoom-100" title="Actual size">100%</button>
   </div>
   <div id="viewport"><div id="scene"></div></div>
+  <aside id="details" hidden><div id="details-content"></div></aside>
   <div id="status">Loading…</div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

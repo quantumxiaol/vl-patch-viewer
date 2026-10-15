@@ -48,7 +48,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts --max-warnings=0",
-    "test": "npm run compile && mocha \"out/test/**/*.test.js\"",
+    "test": "npm run compile && node --check media/webview.js && mocha \"out/test/**/*.test.js\"",
     "package": "vsce package"
   },
   "dependencies": {

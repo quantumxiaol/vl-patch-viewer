@@ -20,6 +20,21 @@ describe('BuiltinRenderer', () => {
     assert.ok(result.svg.includes('class="pin"'), 'should contain pin circles');
     assert.ok(result.svg.includes('<path class="link"'), 'should contain links');
     assert.ok(result.svg.includes('viewBox='), 'should define a viewBox');
+    assert.ok(result.svg.includes('data-element-id='), 'should expose selectable elements');
+  });
+
+  it('scopes the default render to Application and supports the whole document', () => {
+    const source = fixture('HowTo Simple PRC Robot in vvvv.vl');
+    const application = renderer.render(source);
+    assert.strictEqual(application.canvases.length, 2);
+    assert.ok(application.selectedCanvasId);
+    assert.ok(application.svg.includes('RobotAssembly'));
+    assert.ok(!application.svg.includes('SceneWindow'));
+
+    const whole = renderer.render(source, null);
+    assert.strictEqual(whole.selectedCanvasId, null);
+    assert.ok(whole.svg.includes('RobotAssembly'));
+    assert.ok(whole.svg.includes('SceneWindow'));
   });
 
   it('renders deterministically', () => {
