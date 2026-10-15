@@ -2,7 +2,7 @@
   "name": "vl-patch-viewer",
   "displayName": "VL Patch Viewer",
   "description": "Interactive VL patch graphs, canvas views, details and saved-value editing / 交互式 VL 节点图、画布视图、详情查看与静态参数编辑。",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "vl-patch-viewer-dev",
   "icon": "images/icon.png",
   "license": "CC-BY-SA-4.0",
