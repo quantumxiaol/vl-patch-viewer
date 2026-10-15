@@ -143,6 +143,9 @@
     applyTransform();
   });
   document.getElementById('zoom-fit').addEventListener('click', fitToView);
+  document.getElementById('validate').addEventListener('click', function () {
+    vscode.postMessage({ type: 'validate' });
+  });
   document.getElementById('zoom-100').addEventListener('click', function () {
     state.scale = 1;
     applyTransform();

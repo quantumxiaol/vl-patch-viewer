@@ -26,6 +26,7 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 - **按画布查看**：在多个 Process 画布之间切换，也可以查看 Whole document。可执行区域会包含在当前画布中，独立定义不会混入。
 - **节点与 IOBox 详情**：单击元素查看类别、Bounds、引脚和保存值；双击可缩放到该元素。
 - **静态参数编辑**：通过受类型约束且经过校验的操作，修改输入引脚的 `DefaultValue` 或 IOBox 的 `Value`。未知元素和不安全目标会被拒绝。
+- **可选编译验证**：在 Windows 上自动发现本机的 `vvvvc.exe`，并在 Problems 中显示真实编译错误；其余功能不依赖 vvvv。
 - **文本与图形双视图**：编辑通过 VS Code 文本模型完成，原生支持撤销、未保存状态和保存冲突处理。
 - **实时刷新**：输入（带防抖）、保存以及外部工具修改文件后自动重新渲染。
 - **平移与缩放**：拖动平移、滚轮以光标为中心缩放，并提供 Fit 和 100% 按钮。
@@ -58,8 +59,25 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 
 目前只有输入引脚的直接 `DefaultValue` 和非 Slot Pad 的 `Value` 可以编辑。嵌套 `DefaultValue` 和 Slot pads 为只读。
 
+### 使用 vvvv 验证（Windows，可选）
+
+在 Windows 上，扩展先读取 `vlPatch.vvvvcPath`，然后检查注册表和
+`C:\Program Files\vvvv`。候选编译器必须能通过 `vvvvc --help` 且版本不低于
+7.0。显式路径无效时会直接报错，不会悄悄改用其他安装。
+
+在命令面板中运行 **VL Patch: Validate with vvvv**，或点击工具栏的
+**Validate** 按钮。扩展会先保存当前文档，再在临时输出目录中编译。若希望
+每次保存后都验证，请启用 `vlPatch.validateOnSave`。`vlPatch.nugetPath` 可在
+需要时覆盖默认 NuGet 包目录。
+
+编译错误会以来源 `vvvvc` 显示在 Problems 中，完整日志保留在 Output 面板。
+当前多数错误只能定位到文档级，因为编译器不一定提供元素 ID。编译验证只
+检查代码生成，不会执行补丁，也不会求值运行时数据。
+
 ## 已知限制
 
+- 编译验证是可选的 Windows 功能。它不会执行补丁，也不能证明运行时行为、
+  节点语义或第三方包行为。
 - 静态校验只检查 XML 结构、ID、连线及相关不变量，不能保证值的运行时类型正确，也不能保证 vvvv 编译通过。扩展不读取运行时值，也不做类型推断。
 - 缩小视图时节点标签可能被截断，请放大后阅读。
 - 节点类型、重载等语义信息位于 .NET 程序集中，离线时不可用；图形视图只展示文档结构和保存值。
@@ -69,7 +87,7 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 
 - **Phase 2（当前）**：按画布查看、元素详情和静态参数编辑。
 - **后续计划**：基于 donor 的节点插入以及更多布局操作。
-- **Phase 3（待定）**：与正在运行的 vvvv 实例协作。
+- **Phase 3（可选）**：通过 vvvvc 进行真实编译验证。
 
 ## 致谢与许可
 

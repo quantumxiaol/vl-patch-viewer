@@ -42,7 +42,34 @@
         ],
         "priority": "option"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "vlPatch.viewer.validate",
+        "title": "VL Patch: Validate with vvvv",
+        "enablement": "isWindows"
+      }
+    ],
+    "configuration": {
+      "title": "VL Patch Viewer",
+      "properties": {
+        "vlPatch.vvvvcPath": {
+          "type": "string",
+          "default": "",
+          "description": "Full path to vvvvc.exe. Leave empty to auto-detect."
+        },
+        "vlPatch.nugetPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional NuGet repository path override passed to vvvvc."
+        },
+        "vlPatch.validateOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Validate the current VL document with vvvvc after saving (Windows only)."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

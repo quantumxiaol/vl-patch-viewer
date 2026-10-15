@@ -4,6 +4,7 @@
 // "VL Patch Graph" at any time without losing undo history.
 import * as vscode from 'vscode';
 import { VlRenderer } from './renderer';
+import { compilePatch, compilerOutputToText, detectCompiler, parseCompilerOutput } from './vl/compiler';
 import { describeElement, ElementDetails } from './vl/details';
 import { createStaticEdit, StaticEditRequest } from './vl/edits';
 import { CanvasInfo, VlGraph } from './vl/graph';
@@ -42,6 +43,7 @@ type WebviewToHost =
   | { type: 'ready' }
   | { type: 'selectCanvas'; canvasId: string | null }
   | { type: 'selectElement'; elementId: string }
+  | { type: 'validate' }
   | StaticEditRequest;
 
 export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
@@ -52,11 +54,24 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
 
   /** Debounce delay for re-renders triggered by typing. */
   private static readonly debounceMs = 500;
+  private static activeDocument: vscode.TextDocument | undefined;
+  private static activeProvider: VlPatchEditorProvider | undefined;
+  private readonly validations = new Set<string>();
 
   public constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly renderer: VlRenderer
+    private readonly renderer: VlRenderer,
+    private readonly diagnostics: vscode.DiagnosticCollection,
+    private readonly output: vscode.OutputChannel
   ) {}
+
+  public static async validateActiveDocument(): Promise<void> {
+    if (!this.activeProvider || !this.activeDocument) {
+      void vscode.window.showInformationMessage('Open a VL document to validate.');
+      return;
+    }
+    await this.activeProvider.validateDocument(this.activeDocument);
+  }
 
   public async resolveCustomTextEditor(
     document: vscode.TextDocument,
@@ -70,6 +85,15 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
       ],
     };
     webviewPanel.webview.html = this.getHtml(webviewPanel.webview);
+
+    VlPatchEditorProvider.activeProvider = this;
+    VlPatchEditorProvider.activeDocument = document;
+    const viewStateSub = webviewPanel.onDidChangeViewState((event) => {
+      if (event.webviewPanel.active) {
+        VlPatchEditorProvider.activeProvider = this;
+        VlPatchEditorProvider.activeDocument = document;
+      }
+    });
 
     let renderSeq = 0;
     let debounceTimer: NodeJS.Timeout | undefined;
@@ -162,6 +186,8 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
         showDetails();
       } else if (msg.type === 'setPinDefault' || msg.type === 'setPadValue') {
         void applyStaticEdit(msg);
+      } else if (msg.type === 'validate') {
+        void this.validateDocument(document);
       }
     });
 
@@ -174,6 +200,10 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     const saveSub = vscode.workspace.onDidSaveTextDocument((saved) => {
       if (saved.uri.toString() === document.uri.toString()) {
         scheduleRender('saved');
+        const config = vscode.workspace.getConfiguration('vlPatch', saved.uri);
+        if (config.get<boolean>('validateOnSave', false)) {
+          void this.validateDocument(saved);
+        }
       }
     });
 
@@ -186,6 +216,7 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     });
 
     webviewPanel.onDidDispose(() => {
+      viewStateSub.dispose();
       readySub.dispose();
       changeSub.dispose();
       saveSub.dispose();
@@ -194,6 +225,67 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
         clearTimeout(debounceTimer);
       }
     });
+  }
+
+  private async validateDocument(document: vscode.TextDocument): Promise<void> {
+    const uri = document.uri.toString();
+    if (this.validations.has(uri)) {
+      return;
+    }
+    this.validations.add(uri);
+    try {
+      const saved = await document.save();
+      if (!saved) {
+        void vscode.window.showErrorMessage('Unable to save the VL document before validation.');
+        return;
+      }
+      const config = vscode.workspace.getConfiguration('vlPatch', document.uri);
+      const detection = await detectCompiler({
+        vvvvcPath: config.get<string>('vvvvcPath')?.trim() || undefined,
+      });
+      if (detection.status !== 'found' || !detection.installation) {
+        throw new Error(detection.message ?? 'No usable vvvvc installation was found.');
+      }
+      const result = await compilePatch({
+        filePath: document.fileName,
+        vvvvcPath: detection.installation.path,
+        nugetPath: config.get<string>('nugetPath')?.trim() || undefined,
+      });
+      const outputText = compilerOutputToText(result);
+      this.output.appendLine(outputText);
+      const diagnostics = parseCompilerOutput(outputText, result.code).map((item) => {
+        const diagnostic = new vscode.Diagnostic(
+          this.rangeForElement(document, item.elementId),
+          item.message,
+          vscode.DiagnosticSeverity.Error
+        );
+        diagnostic.source = 'vvvvc';
+        return diagnostic;
+      });
+      this.diagnostics.set(document.uri, diagnostics);
+      if (result.code === 0) {
+        void vscode.window.showInformationMessage('vvvvc compilation passed.');
+      } else {
+        void vscode.window.showErrorMessage('vvvvc compilation failed. See Problems and Output.');
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.output.appendLine(`vvvvc validation failed: ${message}`);
+      void vscode.window.showErrorMessage(message);
+    } finally {
+      this.validations.delete(uri);
+    }
+  }
+
+  private rangeForElement(document: vscode.TextDocument, elementId?: string): vscode.Range {
+    if (elementId) {
+      const match = new RegExp(`Id=["']${elementId}["']`).exec(document.getText());
+      if (match) {
+        const start = document.positionAt(match.index);
+        return new vscode.Range(start, document.positionAt(match.index + match[0].length));
+      }
+    }
+    return new vscode.Range(0, 0, 0, 0);
   }
 
   private post(webview: vscode.Webview, message: HostToWebview): void {
@@ -281,6 +373,7 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     <button id="zoom-in" title="Zoom in">+</button>
     <button id="zoom-out" title="Zoom out">−</button>
     <button id="zoom-fit" title="Fit to view">Fit</button>
+    <button id="validate" title="Validate with vvvv">Validate</button>
     <button id="zoom-100" title="Actual size">100%</button>
   </div>
   <div id="viewport"><div id="scene"></div></div>

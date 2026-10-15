@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Optional Windows compiler validation using the detected local `vvvvc.exe`,
+  with manual and save-triggered checks, Problems diagnostics, and full logs.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

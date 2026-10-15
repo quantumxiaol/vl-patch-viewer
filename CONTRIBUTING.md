@@ -54,6 +54,16 @@ CI runs these checks on Windows, macOS, and Linux. Keep user-facing changes in
 `CHANGELOG.md`, follow semantic versioning for releases, and do not commit
 `out/`, `node_modules/`, or generated `.vsix` files.
 
+## Optional real compiler verification (Windows)
+
+The cross-platform unit tests do not require vvvv and must remain the default
+for every contributor. On a Windows machine with vvvv installed, also use the
+Extension Development Host to run **VL Patch: Validate with vvvv** on a known
+valid document and on a document with a deliberately broken node reference.
+Check that success is reported, compilation errors appear in Problems, and no
+temporary build output is left behind. Real vvvv validation is optional and is
+not required to reproduce or review ordinary changes.
+
 ## License and third-party material
 
 The extension is a derivative work and is licensed under **CC BY-SA 4.0**.

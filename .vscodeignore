@@ -1,6 +1,7 @@
 .vscode/**
 src/**
 out/test/**
+out/vvvvc-smoke/**
 out/**/*.map
 test/**
 **/tsconfig.json

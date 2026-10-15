@@ -5,11 +5,15 @@ import { BuiltinRenderer } from './renderer';
 
 export function activate(context: vscode.ExtensionContext): void {
   const renderer = new BuiltinRenderer();
+  const output = vscode.window.createOutputChannel('VL Patch Viewer');
+  const diagnostics = vscode.languages.createDiagnosticCollection('vl-patch-viewer');
+  context.subscriptions.push(output, diagnostics);
+  const provider = new VlPatchEditorProvider(context, renderer, diagnostics, output);
 
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       VlPatchEditorProvider.viewType,
-      new VlPatchEditorProvider(context, renderer),
+      provider,
       {
         // Keep the webview alive (including its pan/zoom state) when the user
         // switches to another tab and back.
@@ -25,7 +29,8 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.showInformationMessage(
         'Use the editor toolbar “Open vl with…” or right-click a .vl file to switch between text and graph view.'
       );
-    })
+    }),
+    vscode.commands.registerCommand('vlPatch.viewer.validate', () => VlPatchEditorProvider.validateActiveDocument())
   );
 }
 

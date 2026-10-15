@@ -39,6 +39,9 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 - **Static saved-value editing** — change an input Pin's `DefaultValue` or an
   IOBox's `Value` through a typed, validated edit. Unknown elements and unsafe
   targets are refused.
+- **Optional compiler validation** — on Windows, discover a local `vvvvc.exe`
+  and show real compilation failures in Problems without making vvvv a
+  requirement for the rest of the extension.
 - **Text ↔ graph duality** — the custom editor is a *text* editor underneath,
   so edits use VS Code's native undo, dirty-state, and save behavior.
 - **Live refresh** — re-renders while you type (debounced), on save, and when
@@ -87,8 +90,27 @@ configuration is needed.
 Only direct input-pin defaults and non-Slot Pad values are editable. Nested
 `DefaultValue` elements and Slot pads are read-only.
 
+### Validate with vvvv (Windows, optional)
+
+On Windows, the extension first checks `vlPatch.vvvvcPath`, then the registry
+and `C:\Program Files\vvvv`. A candidate must pass `vvvvc --help` and be vvvv
+7.0 or newer. An invalid explicit path is reported instead of silently using a
+different installation.
+
+Run **VL Patch: Validate with vvvv** from the Command Palette or the **Validate**
+button. The current document is saved first, then compiled in a temporary output
+directory. To validate on every save, enable `vlPatch.validateOnSave`.
+`vlPatch.nugetPath` can override the default package repository when needed.
+
+Compilation failures appear in Problems with the `vvvvc` source; full logs stay
+in the Output channel. Most current errors are document-level diagnostics,
+because vvvvc does not always include an element ID. Compilation validates code
+generation only—it does not execute the patch or evaluate runtime values.
+
 ## Known Limitations
 
+- Compiler validation is an optional Windows feature. It never runs the patch,
+  and it does not prove runtime behavior, node semantics, or package behavior.
 - Static validation checks XML structure, IDs, links, and related invariants;
   it cannot prove that a value has the correct runtime type or that vvvv will
   compile the patch. Runtime values and type inference are not available.
@@ -103,7 +125,7 @@ Only direct input-pin defaults and non-Slot Pad values are editable. Nested
 - **Phase 2 — current**: per-canvas views, element details, and static
   saved-value editing.
 - **Later**: donor-based node insertion and additional layout operations.
-- **Phase 3 (maybe)**: live collaboration feedback with a running vvvv.
+- **Phase 3 (optional)**: real compiler validation through vvvvc.
 
 ## Credits & License
 
