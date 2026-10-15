@@ -100,5 +100,5 @@ or tag.
 Marketplace publishing is not required for GitHub Releases. If it is added
 later, replace the development `publisher` value in `package.json` with the real
 Marketplace publisher ID, add a 128×128 icon and reference it from the manifest,
-and verify the English README and its screenshots. Run all checks, inspect the
+and verify the README and its screenshots. Run all checks, inspect the
 file list with `npx vsce ls`, and create the package with `npm run package`.
