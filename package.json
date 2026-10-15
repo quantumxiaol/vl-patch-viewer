@@ -1,7 +1,7 @@
 {
   "name": "vl-patch-viewer",
   "displayName": "VL Patch Viewer",
-  "description": "在 VS Code 中查看 vvvv gamma .vl 补丁的交互式节点图，支持画布切换、详情查看和静态参数编辑。",
+  "description": "Interactive VL patch graphs, canvas views, details and saved-value editing / 交互式 VL 节点图、画布视图、详情查看与静态参数编辑。",
   "version": "0.1.0",
   "publisher": "vl-patch-viewer-dev",
   "icon": "images/icon.png",
