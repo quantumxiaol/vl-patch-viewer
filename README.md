@@ -7,8 +7,15 @@
 Visualize [vvvv gamma](https://vvvv.org) `.vl` patch files as interactive SVG
 node graphs directly inside VS Code.
 
-**Self-contained**: the VL parser and the SVG renderer are built into the
-extension. No Python, no uv, no external tools — install and open a `.vl` file.
+The extension has two layers:
+
+- **Self-contained core** — open `.vl` files, inspect canvases and elements, edit
+  saved values, and see structural diagnostics without Python, uv, vvvv, or
+  external tools.
+- **Optional local tools** — on Windows, validate with the local vvvv compiler;
+  optionally install bundled vvvv-skills and the `vl-patch-manipulator` source
+  when an agent needs advanced operations.
+
 You can review patches and their saved parameters on Windows, macOS, or Linux,
 even when vvvv is not installed.
 

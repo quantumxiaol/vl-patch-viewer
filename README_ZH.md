@@ -6,7 +6,12 @@
 
 在 VS Code 中将 [vvvv gamma](https://vvvv.org) 的 `.vl` 补丁文件显示为可交互的 SVG 节点图。
 
-**完全自包含**：VL 解析器和 SVG 渲染器都内置在扩展中，不需要 Python、uv 或其他外部工具。安装后即可打开 `.vl` 文件。即使机器上没有安装 vvvv，也可以在 Windows、macOS 或 Linux 上查看补丁结构和保存的参数。
+扩展分为两层：
+
+- **自包含核心功能**：打开 `.vl` 文件、查看画布和元素详情、修改保存值、读取结构诊断，不需要 Python、uv、vvvv 或任何外部工具。
+- **可选本地工具**：Windows 上可使用本机 vvvv 编译器验证；如需高级 agent 操作，可一键安装内置的 vvvv-skills 和 `vl-patch-manipulator` 源码。
+
+即使机器上没有安装 vvvv，也可以在 Windows、macOS 或 Linux 上查看补丁结构和保存的参数。
 
 ## 安装
 
