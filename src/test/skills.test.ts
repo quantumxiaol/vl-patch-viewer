@@ -35,7 +35,7 @@ describe('Bundled agent skills', () => {
     assert.ok(bridge.includes('vl-structure'));
     assert.ok(bridge.includes('vvvvc'));
     assert.ok(bridge.includes('vlPatch.installSkills'));
-    assert.ok(readFileSync(path.join(skillsRoot, 'NOTICE.md'), 'utf8').includes('565bc5013e661f4d029d81417ddb2045dd1f629a'));
+    assert.ok(readFileSync(path.join(skillsRoot, 'NOTICE.md'), 'utf8').includes('1c6768473a6aa45487a33674cbe08b67b6a6a0f3'));
     assert.ok(readFileSync(path.join(assetsRoot, 'AGENTS.md'), 'utf8').includes('Problems'));
   });
 
