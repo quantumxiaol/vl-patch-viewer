@@ -5,12 +5,12 @@ license: CC-BY-SA-4.0
 metadata:
   author: quantumxiaol and vvvv-skills contributors
   version: "1.0"
-  source: tebjan/vvvv-skills @ 565bc5013e661f4d029d81417ddb2045dd1f629a
+  source: tebjan/vvvv-skills @ 1c6768473a6aa45487a33674cbe08b67b6a6a0f3
 ---
 
 # VL Patch Authoring in VS Code
 
-Use the extension's built-in commands and diagnostics. Do **not** run the Python `vl-patch-manipulator` or expect a `vlpatch` CLI or MCP server to be installed.
+Use the extension's built-in commands and diagnostics first. The bundled workspace package also includes the optional `vl-patch-manipulator` source for advanced typed edits, catalogs, layout and MCP/CLI workflows. Do not assume Python or uv is installed.
 
 ## Available commands
 
@@ -29,10 +29,23 @@ Use the extension's built-in commands and diagnostics. Do **not** run the Python
 4. Save the file, then inspect **Problems**. `vl-structure` diagnostics report XML/ID/link/scope invariants; `vvvvc` diagnostics report real compiler errors when vvvv is installed.
 5. Fix the reported issues and validate again. Do not claim a file is valid until the diagnostics you own are cleared or explained.
 
+## Optional manipulator
+
+For operations outside the extension—catalog lookup, node/link insertion, annotations, layout, slots, builders, or typed batch edits—use the workspace copy at `.agents/skills/vvvv-fileformat/scripts/vl-patch-manipulator` only when Python ≥3.11 and uv are available. Do not run it automatically; use it only when the user asks for an advanced operation or the current task cannot be completed safely with the extension.
+
+```powershell
+cd .agents/skills/vvvv-fileformat/scripts/vl-patch-manipulator
+uv sync --extra server --group test
+uv run vlpatch --help
+uv run --extra server vlpatch-server
+```
+
+Use the manipulator's typed operations and validation instead of rewriting XML by hand. Its edits still flow through VS Code's file watcher, so the extension refreshes Problems after the file changes.
+
 ## Boundaries
 
 - Do not use this extension to evaluate runtime values, infer types, or prove that a patch compiles or behaves correctly.
-- Do not insert/delete nodes, rewire links, search catalogs, move nodes, or invoke a runtime bridge unless the user explicitly provides those capabilities.
+- Do not insert/delete nodes, rewire links, search catalogs, move nodes, or invoke a runtime bridge with the extension alone. For those operations, use the optional manipulator's typed commands and validation when available.
 - Treat unsupported nested defaults, slots, semantic node types, and adaptive overloads as read-only. Unknown values are rejected instead of guessed.
 - A successful structural edit is not a compiler or runtime guarantee. When vvvv is available, perform the real vvvvc validation as well.
 

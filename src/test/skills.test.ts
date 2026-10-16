@@ -39,7 +39,18 @@ describe('Bundled agent skills', () => {
     assert.ok(readFileSync(path.join(assetsRoot, 'AGENTS.md'), 'utf8').includes('Problems'));
   });
 
-  it('excludes runtime code from the bundled skills', () => {
+  it('bundles optional manipulator source without runtime artifacts', () => {
+    const manipulator = path.join(skillsRoot, 'vvvv-fileformat', 'scripts', 'vl-patch-manipulator');
+    for (const required of [
+      'README.md',
+      'pyproject.toml',
+      'uv.lock',
+      path.join('src', 'vl_patch_manipulator', 'session.py'),
+      path.join('tests', 'test_framework.py'),
+    ]) {
+      assert.ok(existsSync(path.join(manipulator, required)), `${required} should be bundled`);
+    }
+
     const files: string[] = [];
     const walk = (directory: string): void => {
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -52,9 +63,14 @@ describe('Bundled agent skills', () => {
       }
     };
     walk(skillsRoot);
-    assert.ok(files.length >= 30);
-    assert.ok(!files.some((file) => file.endsWith('.py') || file.endsWith('.lock') || file.endsWith('.exe')));
-    assert.ok(!existsSync(path.join(skillsRoot, 'vvvv-fileformat', 'scripts')));
+    assert.ok(files.length >= 60);
+    assert.ok(!files.some((file) =>
+      file.includes(`${path.sep}.venv${path.sep}`) ||
+      file.includes(`${path.sep}__pycache__${path.sep}`) ||
+      file.endsWith('.pyc') ||
+      file.endsWith('.exe') ||
+      file.endsWith('.dll')
+    ));
   });
 
   it('declares the install command and default workspace directory', () => {

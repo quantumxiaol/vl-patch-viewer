@@ -3,6 +3,9 @@ src/**
 out/test/**
 out/vvvvc-smoke/**
 out/**/*.map
+assets/**/.venv/**
+**/__pycache__/**
+**/*.pyc
 test/**
 **/tsconfig.json
 **/.eslintrc.json

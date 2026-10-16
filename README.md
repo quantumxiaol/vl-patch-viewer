@@ -109,16 +109,19 @@ generation only—it does not execute the patch or evaluate runtime values.
 
 ## Agent assistance
 
-The extension bundles the vvvv-skills documentation as Markdown-only reference
-material and can install it into a workspace with **VL Patch: Install Agent
-Skills**. By default, skills are copied to `.agents/skills` and an `AGENTS.md`
-bridge is created at the workspace root. Existing files are skipped and are
-never overwritten.
+The extension bundles the vvvv-skills documentation and the optional
+`vl-patch-manipulator` source. Install them into a workspace with **VL Patch:
+Install Agent Skills**. By default, skills are copied to `.agents/skills` and an
+`AGENTS.md` bridge is created at the workspace root. Existing files are skipped
+and are never overwritten.
 
-After installing, embedded agents can follow this loop: edit the document, save,
-read Problems (`vl-structure` for structural checks, `vvvvc` for real compiler
-results when available), fix the document, and repeat until clean. Kimi/Claude
-class agents can use the installed skills; Copilot and terminal agents should use
+The core extension remains self-contained and never runs Python. Only agents that
+need catalog lookup, node/link operations, layout, or typed batch edits need the
+optional manipulator, and those users install Python ≥3.11 and uv themselves.
+After installing, agents follow the same loop: edit the document, save, read
+Problems (`vl-structure` for structural checks, `vvvvc` for real compiler results
+when available), fix the document, and repeat until clean. Kimi/Claude class
+agents can use the installed skills; Copilot and terminal agents should use
 `AGENTS.md`, since Copilot does not load SKILL.md automatically.
 
 ## Known Limitations

@@ -1,6 +1,6 @@
 # Working with VL Patch Viewer
 
-This workspace includes **VL Patch Viewer** and its bundled vvvv-skills documentation. Use the extension for inspection, static editing, and diagnostics instead of looking for a Python CLI or MCP server.
+This workspace includes **VL Patch Viewer**, its bundled vvvv-skills documentation, and the optional `vl-patch-manipulator` source. Use the extension for inspection, static editing, and diagnostics first.
 
 ## Workflow
 
@@ -13,10 +13,14 @@ This workspace includes **VL Patch Viewer** and its bundled vvvv-skills document
    - `vvvvc` reports actual compiler failures when vvvv is installed on Windows.
 6. Fix and validate again. Do not report completion while diagnostics you own remain unresolved.
 
+## Optional manipulator
+
+For catalog lookup, node/link operations, annotations, layout, or typed batch edits beyond the extension, use the workspace copy at `.agents/skills/vvvv-fileformat/scripts/vl-patch-manipulator` when Python ≥3.11 and uv are available. Do not run it automatically; run it only when the user requests an advanced operation. Its typed edits and validation are still subject to the Problems loop.
+
 ## Hard boundaries
 
 - Do not use runtime values, type inference, or compilation claims that are not evidenced by the current document and compiler output.
-- Do not insert/delete nodes, rewire links, move nodes, or use catalogs without a verified source. Use existing document donors when adding structure later.
+- Do not insert/delete nodes, rewire links, move nodes, or use catalogs with the extension alone. Use the optional manipulator's typed operations and validation when such a change is requested.
 - Do not run the generated application, install packages, or alter user files outside the requested edit.
 - If vvvv is unavailable, only claim structural validation. If vvvvc is available, also run the real compiler validation.
 

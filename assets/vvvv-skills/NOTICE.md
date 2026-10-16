@@ -7,8 +7,9 @@ The Markdown documents in this directory were copied from the local
 ending normalization.
 
 The source material is licensed under **CC BY-SA 4.0**, the same license used by
-this project. No Python implementation, `uv.lock`, MCP server, executable, or
-other runtime files from the upstream project are included in this distribution.
+this project. The optional `vl-patch-manipulator` Python source, tests and lockfile
+are included under `vvvv-fileformat/scripts/`. No `.venv`, bytecode, executable,
+dependency package, or other local runtime artifact is included.
 
 `vl-patch-authoring/SKILL.md` and `AGENTS.md` are bridge documents written for
 this extension. They direct users to the extension's own commands and the VS Code
