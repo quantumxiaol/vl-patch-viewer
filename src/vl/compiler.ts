@@ -149,7 +149,7 @@ export async function detectCompiler(dependencies: DetectionDependencies = {}): 
   for (const location of registryLocations) {
     const version = parseVersion(location);
     if (version) {
-      candidates.push({ path: path.join(location, COMPILER_NAME), ...version });
+      candidates.push({ path: path.win32.join(location, COMPILER_NAME), ...version });
     }
   }
 
@@ -162,7 +162,7 @@ export async function detectCompiler(dependencies: DetectionDependencies = {}): 
   for (const directory of directories) {
     const version = parseVersion(directory);
     if (version) {
-      candidates.push({ path: path.join(DEFAULT_INSTALL_DIRECTORY, directory, COMPILER_NAME), ...version });
+      candidates.push({ path: path.win32.join(DEFAULT_INSTALL_DIRECTORY, directory, COMPILER_NAME), ...version });
     }
   }
   candidates.sort(compareCandidates);

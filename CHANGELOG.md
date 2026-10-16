@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-10-16
+
+### Fixed
+- Build Windows vvvvc candidate paths with `path.win32`, so detection tests pass
+  on Linux and macOS CI runners.
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
