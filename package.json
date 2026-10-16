@@ -48,6 +48,10 @@
         "command": "vlPatch.viewer.validate",
         "title": "VL Patch: Validate with vvvv",
         "enablement": "isWindows"
+      },
+      {
+        "command": "vlPatch.installSkills",
+        "title": "VL Patch: Install Agent Skills"
       }
     ],
     "configuration": {
@@ -67,6 +71,11 @@
           "type": "boolean",
           "default": false,
           "description": "Validate the current VL document with vvvvc after saving (Windows only)."
+        },
+        "vlPatch.skillInstallDirectory": {
+          "type": "string",
+          "default": ".agent/skills",
+          "description": "Workspace-relative directory where bundled agent skills are installed."
         }
       }
     }

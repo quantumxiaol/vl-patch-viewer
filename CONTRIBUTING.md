@@ -28,6 +28,7 @@ editor.
 - `src/` — extension and renderer TypeScript sources.
 - `src/test/**/*.test.ts` — Mocha unit tests, compiled to `out/test/`.
 - `media/` — static webview assets shipped with the extension.
+- `assets/` — Markdown-only agent skills and bridge documentation shipped with the extension.
 - `test/fixtures/` — small, redistributable test inputs and their provenance.
 - `out/` — generated JavaScript; do not edit or commit it.
 

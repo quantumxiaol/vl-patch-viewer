@@ -107,6 +107,20 @@ in the Output channel. Most current errors are document-level diagnostics,
 because vvvvc does not always include an element ID. Compilation validates code
 generation only—it does not execute the patch or evaluate runtime values.
 
+## Agent assistance
+
+The extension bundles the vvvv-skills documentation as Markdown-only reference
+material and can install it into a workspace with **VL Patch: Install Agent
+Skills**. By default, skills are copied to `.agent/skills` and an `AGENTS.md`
+bridge is created at the workspace root. Existing files are skipped and are
+never overwritten.
+
+After installing, embedded agents can follow this loop: edit the document, save,
+read Problems (`vl-structure` for structural checks, `vvvvc` for real compiler
+results when available), fix the document, and repeat until clean. Kimi/Claude
+class agents can use the installed skills; Copilot and terminal agents should use
+`AGENTS.md`, since Copilot does not load SKILL.md automatically.
+
 ## Known Limitations
 
 - Compiler validation is an optional Windows feature. It never runs the patch,

@@ -74,6 +74,17 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 当前多数错误只能定位到文档级，因为编译器不一定提供元素 ID。编译验证只
 检查代码生成，不会执行补丁，也不会求值运行时数据。
 
+## Agent 辅助
+
+扩展已捆绑 Markdown 形式的 vvvv-skills 参考文档。运行 **VL Patch: Install Agent
+Skills** 可将它们复制到工作区：默认写入 `.agent/skills`，并在工作区根目录创建
+`AGENTS.md` 桥接说明。已有文件会跳过，绝不会覆盖。
+
+安装后，agent 可以按这个闭环工作：修改文档、保存、读取 Problems（`vl-structure`
+是结构校验，有 vvvv 时 `vvvvc` 是真实编译结果）、修复并再次验证。Kimi/Claude
+类 agent 可以使用 skills；Copilot 和终端类 agent 使用 `AGENTS.md`，因为 Copilot
+不会自动加载 SKILL.md。
+
 ## 已知限制
 
 - 编译验证是可选的 Windows 功能。它不会执行补丁，也不能证明运行时行为、

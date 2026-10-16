@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import { VlPatchEditorProvider } from './vlPatchEditorProvider';
 import { BuiltinRenderer } from './renderer';
+import { installSkills } from './vl/skills';
 
 export function activate(context: vscode.ExtensionContext): void {
   const renderer = new BuiltinRenderer();
@@ -30,7 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
         'Use the editor toolbar “Open vl with…” or right-click a .vl file to switch between text and graph view.'
       );
     }),
-    vscode.commands.registerCommand('vlPatch.viewer.validate', () => VlPatchEditorProvider.validateActiveDocument())
+    vscode.commands.registerCommand('vlPatch.viewer.validate', () => VlPatchEditorProvider.validateActiveDocument()),
+    vscode.commands.registerCommand('vlPatch.installSkills', () => installSkills(context))
   );
 }
 

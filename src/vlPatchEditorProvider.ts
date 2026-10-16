@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { VlRenderer } from './renderer';
 import { compilePatch, compilerOutputToText, detectCompiler, parseCompilerOutput } from './vl/compiler';
 import { describeElement, ElementDetails } from './vl/details';
+import { validateDocumentText } from './vl/diagnostics';
 import { createStaticEdit, StaticEditRequest } from './vl/edits';
 import { CanvasInfo, VlGraph } from './vl/graph';
 import { parseXml } from './vl/xml';
@@ -57,6 +58,8 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
   private static activeDocument: vscode.TextDocument | undefined;
   private static activeProvider: VlPatchEditorProvider | undefined;
   private readonly validations = new Set<string>();
+  private readonly structuralDiagnostics = new Map<string, vscode.Diagnostic[]>();
+  private readonly compilerDiagnostics = new Map<string, vscode.Diagnostic[]>();
 
   public constructor(
     private readonly context: vscode.ExtensionContext,
@@ -123,6 +126,7 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
       const seq = ++renderSeq;
       this.post(webviewPanel.webview, { type: 'status', message: `Rendering (${reason})…` });
       try {
+        this.validateStructure(document);
         const result = this.renderer.render(document.getText(), selectedCanvasId);
         if (seq !== renderSeq) {
           return; // A newer render superseded this one.
@@ -227,6 +231,37 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
     });
   }
 
+  private validateStructure(document: vscode.TextDocument): void {
+    const errors = validateDocumentText(document.getText());
+    const diagnostics = errors.map((item) => {
+      const diagnostic = new vscode.Diagnostic(
+        this.rangeForElement(document, item.elementId),
+        item.message,
+        vscode.DiagnosticSeverity.Error
+      );
+      diagnostic.source = 'vl-structure';
+      diagnostic.code = item.code;
+      return diagnostic;
+    });
+    this.setStructuralDiagnostics(document, diagnostics);
+  }
+
+  private setStructuralDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+    this.structuralDiagnostics.set(document.uri.toString(), diagnostics);
+    this.setCombinedDiagnostics(document);
+  }
+
+  private setCompilerDiagnostics(document: vscode.TextDocument, diagnostics: vscode.Diagnostic[]): void {
+    this.compilerDiagnostics.set(document.uri.toString(), diagnostics);
+    this.setCombinedDiagnostics(document);
+  }
+
+  private setCombinedDiagnostics(document: vscode.TextDocument): void {
+    const structural = this.structuralDiagnostics.get(document.uri.toString()) ?? [];
+    const compiler = this.compilerDiagnostics.get(document.uri.toString()) ?? [];
+    this.diagnostics.set(document.uri, [...structural, ...compiler]);
+  }
+
   private async validateDocument(document: vscode.TextDocument): Promise<void> {
     const uri = document.uri.toString();
     if (this.validations.has(uri)) {
@@ -262,7 +297,7 @@ export class VlPatchEditorProvider implements vscode.CustomTextEditorProvider {
         diagnostic.source = 'vvvvc';
         return diagnostic;
       });
-      this.diagnostics.set(document.uri, diagnostics);
+      this.setCompilerDiagnostics(document, diagnostics);
       if (result.code === 0) {
         void vscode.window.showInformationMessage('vvvvc compilation passed.');
       } else {
