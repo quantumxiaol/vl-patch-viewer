@@ -1,10 +1,8 @@
 # Attribution and modifications
 
-The Markdown documents in this directory were copied from the local
-`C:\work\kuroko\.agent\skills` snapshot and verified against
+The Markdown documents in this directory are copied from
 [tebjan/vvvv-skills](https://github.com/tebjan/vvvv-skills) at upstream commit
-`1c6768473a6aa45487a33674cbe08b67b6a6a0f3`. Content matches upstream after line
-ending normalization.
+`1c6768473a6aa45487a33674cbe08b67b6a6a0f3`, with line endings normalized.
 
 The source material is licensed under **CC BY-SA 4.0**, the same license used by
 this project. The optional `vl-patch-manipulator` Python source, tests and lockfile
