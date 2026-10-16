@@ -74,7 +74,7 @@
         },
         "vlPatch.skillInstallDirectory": {
           "type": "string",
-          "default": ".agent/skills",
+          "default": ".agents/skills",
           "description": "Workspace-relative directory where bundled agent skills are installed."
         }
       }

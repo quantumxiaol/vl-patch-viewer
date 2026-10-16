@@ -65,7 +65,7 @@ describe('Bundled agent skills', () => {
       };
     };
     assert.ok(manifest.contributes.commands.some((command) => command.command === 'vlPatch.installSkills'));
-    assert.strictEqual(manifest.contributes.configuration.properties['vlPatch.skillInstallDirectory']?.default, '.agent/skills');
+    assert.strictEqual(manifest.contributes.configuration.properties['vlPatch.skillInstallDirectory']?.default, '.agents/skills');
   });
 });
 

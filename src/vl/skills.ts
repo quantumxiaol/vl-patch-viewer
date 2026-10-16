@@ -11,7 +11,7 @@ export async function installSkills(context: vscode.ExtensionContext): Promise<v
     return;
   }
   const config = vscode.workspace.getConfiguration('vlPatch', folder.uri);
-  const configured = (config.get<string>('skillInstallDirectory') ?? '.agent/skills').trim() || '.agent/skills';
+  const configured = (config.get<string>('skillInstallDirectory') ?? '.agents/skills').trim() || '.agents/skills';
   if (path.isAbsolute(configured) || configured === '..' || configured.startsWith(`..${path.sep}`)) {
     void vscode.window.showErrorMessage('The skills directory must stay inside the workspace.');
     return;

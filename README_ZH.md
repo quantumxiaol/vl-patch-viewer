@@ -77,7 +77,7 @@ code --install-extension vl-patch-viewer-x.y.z.vsix
 ## Agent 辅助
 
 扩展已捆绑 Markdown 形式的 vvvv-skills 参考文档。运行 **VL Patch: Install Agent
-Skills** 可将它们复制到工作区：默认写入 `.agent/skills`，并在工作区根目录创建
+Skills** 可将它们复制到工作区：默认写入 `.agents/skills`，并在工作区根目录创建
 `AGENTS.md` 桥接说明。已有文件会跳过，绝不会覆盖。
 
 安装后，agent 可以按这个闭环工作：修改文档、保存、读取 Problems（`vl-structure`

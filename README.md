@@ -111,7 +111,7 @@ generation only—it does not execute the patch or evaluate runtime values.
 
 The extension bundles the vvvv-skills documentation as Markdown-only reference
 material and can install it into a workspace with **VL Patch: Install Agent
-Skills**. By default, skills are copied to `.agent/skills` and an `AGENTS.md`
+Skills**. By default, skills are copied to `.agents/skills` and an `AGENTS.md`
 bridge is created at the workspace root. Existing files are skipped and are
 never overwritten.
 
